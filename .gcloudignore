@@ -1,0 +1,11 @@
+# Do not upload to App Engine (use .gitignore patterns)
+.git
+.gitignore
+.env
+.env.*
+node_modules/
+*.log
+.idea
+.vscode
+*.md
+!README.md

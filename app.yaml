@@ -1,0 +1,6 @@
+# Google App Engine - Industry Frontend (Vite/React)
+# Deploy: cd industry-frontend && gcloud app deploy
+# npm start runs: build + serve dist on port 8080
+runtime: nodejs20
+env: standard
+service: default
