@@ -1,25 +1,6 @@
-const API_MODE_KEY = "industry_api_mode";
-const LOCAL_BASE = "http://localhost:1337";
+const API_BASE = import.meta.env.VITE_API_URL?.replace(/\/$/, "") || "https://api-industry-dev.mindmatrix.io";
 
-/** "local" = localhost:1337 (industry-backend-node), "remote" = VITE_API_URL (deployed). Default local. */
-export function getApiMode(): "local" | "remote" {
-  const v = typeof localStorage !== "undefined" ? localStorage.getItem(API_MODE_KEY) : null;
-  return v === "remote" ? "remote" : "local";
-}
-
-export function setApiMode(mode: "local" | "remote") {
-  try {
-    localStorage.setItem(API_MODE_KEY, mode);
-  } catch (_) {}
-}
-
-const getBaseUrl = (): string => {
-  if (getApiMode() === "remote") {
-    const url = import.meta.env.VITE_API_URL?.replace(/\/$/, "") || "";
-    return url || LOCAL_BASE;
-  }
-  return LOCAL_BASE;
-};
+const getBaseUrl = (): string => API_BASE;
 
 /** Optional API token (e.g. Strapi API Token with full access). When set in .env as VITE_API_TOKEN, used for auth. */
 const getApiToken = (): string | null => {
