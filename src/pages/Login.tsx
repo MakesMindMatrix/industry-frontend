@@ -44,7 +44,7 @@ export default function Login() {
     try {
       const { jwt, user } = await login(email.trim(), password);
       setAuth(jwt, user);
-      navigate("/industry/profile", { replace: true });
+      navigate("/industry/home", { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {
@@ -73,7 +73,7 @@ export default function Login() {
       };
       const { jwt, user } = await industryRegister(body);
       setAuth(jwt, user);
-      navigate("/industry/profile", { replace: true });
+      navigate("/industry/home", { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Signup failed");
     } finally {

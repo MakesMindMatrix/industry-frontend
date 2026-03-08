@@ -1,0 +1,14 @@
+dispatch:
+# Rule 1: Routes all traffic for your new staging domain to the 'lms-staging' service.
+  # This is crucial, otherwise lms-staging.mindmatrix.io would hit the 'default' service.
+  - url: "lms-staging.mindmatrix.io/*"
+    service: lms-staging
+
+  # Rule 2: Routes all traffic for your production domain to the 'default' service.
+  # This ensures your primary site keeps working correctly.
+  - url: "lms.mindmatrix.io/*"
+    service: default
+
+  # Rule 3: Routes all traffic for your new staging domain to the 'industry-frontend' service.
+  - url: "industry.mindmatrix.io/*"
+    service: industry-frontend

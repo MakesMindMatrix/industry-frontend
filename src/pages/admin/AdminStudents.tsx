@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Upload, FileDown, Plus, Pencil, Trash2, LogOut, Loader2 } from "lucide-react";
+import { Users, Upload, FileDown, Plus, Pencil, Trash2, LogOut, Loader2, Filter } from "lucide-react";
 import {
   getAdminStudents,
   createAdminStudent,
@@ -13,6 +13,7 @@ import {
   deleteAdminStudent,
   loadAdminStudentsFromCsv,
   uploadAdminStudentsCsv,
+  syncAdminFilterOptions,
   clearAdminAuth,
   type StudentIdRow,
 } from "@/lib/api";
@@ -24,6 +25,7 @@ export default function AdminStudents() {
   const [loading, setLoading] = useState(true);
   const [loadCsvLoading, setLoadCsvLoading] = useState(false);
   const [uploadLoading, setUploadLoading] = useState(false);
+  const [filterSyncLoading, setFilterSyncLoading] = useState(false);
   const [editing, setEditing] = useState<number | null>(null);
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({ email: "", external_id: "" as string, document_id: "" });
@@ -89,6 +91,26 @@ export default function AdminStudents() {
       setUploadLoading(false);
     }
     e.target.value = "";
+  };
+
+  const handleUpdateFilterValues = async () => {
+    setFilterSyncLoading(true);
+    setError("");
+    setMessage("");
+    try {
+      const result = await syncAdminFilterOptions();
+      const c = result.counts;
+      setMessage(
+        result.message +
+          (c
+            ? ` Colleges: ${c.colleges}, Branches: ${c.branches}, Specialisations: ${c.specialisations}, Universities: ${c.universities}.`
+            : "")
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update filter values");
+    } finally {
+      setFilterSyncLoading(false);
+    }
   };
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -191,6 +213,29 @@ export default function AdminStudents() {
       {message && (
         <p className="text-sm text-green-600 dark:text-green-400 bg-green-500/10 p-2 rounded-md">{message}</p>
       )}
+
+      <Card className="border-muted/80">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Filter className="h-4 w-4 text-muted-foreground" />
+            Talent Discovery filter dropdowns
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <p className="text-sm text-muted-foreground">
+            Sync colleges, branches, specialisations and universities from Strapi learners into the database. These values are used in the Talent Discovery filters (Industry → Shortlisting). Run this when learner data has changed and you want dropdown options updated.
+          </p>
+          <Button
+            variant="secondary"
+            onClick={handleUpdateFilterValues}
+            disabled={filterSyncLoading}
+            className="gap-2"
+          >
+            {filterSyncLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Filter className="h-4 w-4" />}
+            {filterSyncLoading ? "Updating…" : "Update filter values"}
+          </Button>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

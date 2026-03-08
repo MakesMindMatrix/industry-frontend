@@ -88,7 +88,7 @@ export function DashboardLayout({ children, navItems, metrics, portalLabel, base
         })}
       </nav>
 
-      <div className="p-2 border-t border-sidebar-border shrink-0 mt-auto">
+      <div className="p-2 border-t border-sidebar-border shrink-0 mt-auto space-y-1">
         <Button
           variant="ghost"
           onClick={handleSignOut}

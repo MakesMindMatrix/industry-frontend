@@ -1,4 +1,25 @@
-const getBaseUrl = () => import.meta.env.VITE_API_URL?.replace(/\/$/, "") || "";
+const API_MODE_KEY = "industry_api_mode";
+const LOCAL_BASE = "http://localhost:1337";
+
+/** "local" = localhost:1337 (industry-backend-node), "remote" = VITE_API_URL (deployed). Default local. */
+export function getApiMode(): "local" | "remote" {
+  const v = typeof localStorage !== "undefined" ? localStorage.getItem(API_MODE_KEY) : null;
+  return v === "remote" ? "remote" : "local";
+}
+
+export function setApiMode(mode: "local" | "remote") {
+  try {
+    localStorage.setItem(API_MODE_KEY, mode);
+  } catch (_) {}
+}
+
+const getBaseUrl = (): string => {
+  if (getApiMode() === "remote") {
+    const url = import.meta.env.VITE_API_URL?.replace(/\/$/, "") || "";
+    return url || LOCAL_BASE;
+  }
+  return LOCAL_BASE;
+};
 
 /** Optional API token (e.g. Strapi API Token with full access). When set in .env as VITE_API_TOKEN, used for auth. */
 const getApiToken = (): string | null => {
@@ -225,7 +246,7 @@ export async function createCompetency(payload: { job_description: number; skill
   return data;
 }
 
-export async function updateCompetency(id: number, payload: { skillGroups?: unknown[]; approved?: boolean }) {
+export async function updateCompetency(id: number, payload: { skillGroups?: unknown[]; approved?: boolean; vacancies?: number }) {
   const res = await authFetch(`/api/competency-matrices/${id}`, { method: "PUT", body: JSON.stringify(payload) });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error?.message || "Failed to update competency");
@@ -367,6 +388,98 @@ export async function postContributionInterest(contributionId: number): Promise<
   return data;
 }
 
+/** Talent Push: AI-matched students for company profile (cached). */
+export async function fetchTalentPush(): Promise<{ students: unknown[]; computedAt: string | null }> {
+  const res = await authFetch("/api/industry/talent-push");
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error?.message || "Failed to fetch talent push");
+  return {
+    students: Array.isArray(data.students) ? data.students : [],
+    computedAt: data.computedAt ?? null,
+  };
+}
+
+/** Our Students: students with at least one program completion >= 0%. */
+export async function fetchOurStudents(): Promise<{ data: Array<Record<string, unknown> & { documentId?: string; completion?: number | null }> }> {
+  const res = await authFetch(`/api/industry/our-students`);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error?.message || "Failed to fetch our students");
+  return { data: Array.isArray(data.data) ? data.data : [] };
+}
+
+/** Talent Push: Recompute with AI and store new results. */
+export async function refreshTalentPush(): Promise<{ students: unknown[]; computedAt: string | null }> {
+  const res = await authFetch("/api/industry/talent-push/refresh", { method: "POST" });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error?.message || "Failed to refresh talent push");
+  return {
+    students: Array.isArray(data.students) ? data.students : data.students ?? [],
+    computedAt: data.computedAt ?? null,
+  };
+}
+
+/** Talent Push: AI competency breakdown for a student (cached after first view). */
+export type TalentPushStudentCompetencyResponse = {
+  skillGroups: Array<{
+    category?: string;
+    weight?: number;
+    skills?: Array<{ skill?: string; level?: number }>;
+  }>;
+};
+export async function fetchTalentPushStudentCompetency(params: {
+  documentId?: string;
+  learnerSnapshot?: Record<string, unknown>;
+}): Promise<TalentPushStudentCompetencyResponse> {
+  const res = await authFetch("/api/industry/talent-push/student-competency", {
+    method: "POST",
+    body: JSON.stringify({
+      documentId: params.documentId,
+      learnerSnapshot: params.learnerSnapshot ?? {},
+    }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error?.message || "Failed to fetch competency");
+  return {
+    skillGroups: Array.isArray(data.skillGroups) ? data.skillGroups : [],
+  };
+}
+
+/** Talent Push: shortlist a student (appears under Active Hiring). */
+export async function talentPushShortlist(params: { documentId: string; learnerSnapshot?: Record<string, unknown> }): Promise<{ ok: boolean; shortlisted: boolean }> {
+  const res = await authFetch("/api/industry/talent-push/shortlist", {
+    method: "POST",
+    body: JSON.stringify({ documentId: params.documentId, learner_snapshot: params.learnerSnapshot ?? {} }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error?.message || "Failed to shortlist");
+  return data;
+}
+
+/** Talent Push: schedule interview for a student (appears under Active Hiring). */
+export async function talentPushSchedule(params: {
+  documentId: string;
+  interview_date?: string;
+  interview_time?: string;
+  interview_location?: string;
+  interview_type?: string;
+  learnerSnapshot?: Record<string, unknown>;
+}): Promise<{ ok: boolean; scheduled: boolean }> {
+  const res = await authFetch("/api/industry/talent-push/schedule", {
+    method: "POST",
+    body: JSON.stringify({
+      documentId: params.documentId,
+      interview_date: params.interview_date,
+      interview_time: params.interview_time,
+      interview_location: params.interview_location,
+      interview_type: params.interview_type,
+      learner_snapshot: params.learnerSnapshot ?? {},
+    }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error?.message || "Failed to schedule");
+  return data;
+}
+
 export async function fetchJdSuggestions() {
   const url = getApiUrl("/api/jd/suggestions");
   const res = await fetch(url);
@@ -398,7 +511,40 @@ export type MatchLearnersBody = {
   competencies?: { category?: string; skills?: string[]; weight?: number; importance?: string }[];
   competencyMatrixId?: number;
   jdId?: number;
+  /** Optional filters applied to learner pool before AI matching */
+  filters?: {
+    education_level?: string;
+    college?: string;
+    branch?: string;
+    specialisation?: string;
+    university?: string;
+  };
+  /** Minimum quiz average (3–10) for match pool; students with avg > this qualify. Default backend uses 9. */
+  minScore?: number;
+  /** Number of vacancies (V). AI receives V×10 random students, displays top V×5. Default 1 → 10 to AI, 5 shown. */
+  vacancies?: number;
 };
+
+export type FilterOptionsResponse = {
+  colleges: string[];
+  branches: string[];
+  specialisations: string[];
+  universities: string[];
+};
+
+export async function fetchFilterOptions(): Promise<FilterOptionsResponse> {
+  const base = getBaseUrl();
+  if (!base) return { colleges: [], branches: [], specialisations: [], universities: [] };
+  const res = await authFetch("/api/jd/filter-options");
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) return { colleges: [], branches: [], specialisations: [], universities: [] };
+  return {
+    colleges: Array.isArray(data.colleges) ? data.colleges : [],
+    branches: Array.isArray(data.branches) ? data.branches : [],
+    specialisations: Array.isArray(data.specialisations) ? data.specialisations : [],
+    universities: Array.isArray(data.universities) ? data.universities : [],
+  };
+}
 
 /** Student competency matrix from AI matching: same categories as job, each skill has level 1–5 */
 export type StudentCompetencySkillGroup = {
@@ -838,5 +984,17 @@ export async function uploadAdminStudentsCsv(csvText: string): Promise<{ loaded:
   const res = await adminFetch("/api/admin/students/upload", { method: "POST", body: JSON.stringify({ csv: csvText }) });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error?.message || "Failed to upload CSV");
+  return data;
+}
+
+/** Admin only: sync filter dropdown options (colleges, branches, specialisations, universities) from Strapi learners. */
+export async function syncAdminFilterOptions(): Promise<{
+  ok: boolean;
+  message: string;
+  counts: { colleges: number; branches: number; specialisations: number; universities: number };
+}> {
+  const res = await adminFetch("/api/admin/filter-options/sync", { method: "POST", body: JSON.stringify({}) });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error?.message || "Failed to update filter values");
   return data;
 }

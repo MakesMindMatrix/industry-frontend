@@ -11,6 +11,7 @@ const navItems = [
   { label: "AI JD Builder", href: "/industry/jd-create", icon: Sparkles },
   { label: "Competency Matrix", href: "/industry/competency", icon: BarChart3 },
   { label: "Talent Discovery", href: "/industry/shortlisting", icon: Users },
+  // { label: "Our Students", href: "/industry/our-students", icon: GraduationCap },
   { label: "Active Hiring", href: "/industry/active-hiring", icon: ClipboardList },
   { label: "Future Hiring", href: "/industry/future-hiring", icon: Briefcase },
   { label: "Events & Contributions", href: "/industry/contribute", icon: Calendar },

@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Briefcase, Plus, Target, Clock, Users, FileText, Loader2, Eye, Pencil } from "lucide-react";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
   fetchIndustryFutureHiring,
   getMyJDs,
@@ -58,7 +58,7 @@ export default function FutureHiring() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [viewRequirement, setViewRequirement] = useState<Pipeline | null>(null);
-  const [editRequirement, setEditRequirement] = useState<Pipeline | null>(null);
+  const [isEditingInPopup, setIsEditingInPopup] = useState(false);
   const [editForm, setEditForm] = useState({ roleTitle: "", candidatesCount: "", timeline: "", attachedJdId: "" });
   const [updating, setUpdating] = useState(false);
   const [updateError, setUpdateError] = useState<string | null>(null);
@@ -71,25 +71,14 @@ export default function FutureHiring() {
   }, []);
 
   useEffect(() => {
-    if (showForm || editRequirement != null) {
+    if (showForm || viewRequirement != null) {
       setSavedJdsLoading(true);
       getMyJDs()
         .then((list) => setSavedJds(list.filter((j) => j.status === "published")))
         .catch(() => setSavedJds([]))
         .finally(() => setSavedJdsLoading(false));
     }
-  }, [showForm, editRequirement != null]);
-
-  useEffect(() => {
-    if (editRequirement) {
-      setEditForm({
-        roleTitle: editRequirement.role,
-        candidatesCount: String(editRequirement.candidates),
-        timeline: safeTimelineValue(editRequirement.timeline),
-        attachedJdId: editRequirement.job_description_id != null ? String(editRequirement.job_description_id) : "",
-      });
-    }
-  }, [editRequirement]);
+  }, [showForm, viewRequirement != null]);
 
   const refetchPipelines = () => {
     fetchIndustryFutureHiring()
@@ -131,7 +120,7 @@ export default function FutureHiring() {
 
   const handleUpdateRequirement = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editRequirement) return;
+    if (!viewRequirement) return;
     const title = editForm.roleTitle.trim();
     if (!title) {
       setUpdateError("Role title is required.");
@@ -143,14 +132,15 @@ export default function FutureHiring() {
     setUpdating(true);
     setUpdateError(null);
     try {
-      await updateFutureHiringRequirement(editRequirement.id, {
+      await updateFutureHiringRequirement(viewRequirement.id, {
         role_title: title,
         candidates_count: count,
         timeline: editForm.timeline || "3 months",
         job_description_id: jdId,
       });
       refetchPipelines();
-      setEditRequirement(null);
+      setIsEditingInPopup(false);
+      setViewRequirement(null);
     } catch (e) {
       setUpdateError(e instanceof Error ? e.message : "Failed to update requirement");
     } finally {
@@ -282,25 +272,8 @@ export default function FutureHiring() {
                     </div>
                     <Progress value={p.progress} />
                   </div>
-                  <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setViewRequirement(p)}>
+                  <Button variant="outline" size="sm" className="gap-1.5" onClick={() => { setViewRequirement(p); setIsEditingInPopup(false); setUpdateError(null); }}>
                     <Eye className="h-3.5 w-3.5" /> View
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-1.5"
-                    onClick={() => {
-                      setEditRequirement(p);
-                      setEditForm({
-                        roleTitle: p.role ?? "",
-                        candidatesCount: String(p.candidates ?? 0),
-                        timeline: safeTimelineValue(p.timeline ?? ""),
-                        attachedJdId: p.job_description_id != null ? String(p.job_description_id) : "",
-                      });
-                      setUpdateError(null);
-                    }}
-                  >
-                    <Pencil className="h-3.5 w-3.5" /> Edit
                   </Button>
                 </div>
               </div>
@@ -309,67 +282,78 @@ export default function FutureHiring() {
         ))}
       </div>
 
-      {/* View requirement sheet */}
-      <Sheet open={!!viewRequirement} onOpenChange={(open) => !open && setViewRequirement(null)}>
-        <SheetContent side="right" className="sm:max-w-md">
-          <SheetHeader>
-            <SheetTitle>Requirement details</SheetTitle>
-          </SheetHeader>
-          {viewRequirement && (
-            <div className="mt-6 space-y-4 text-sm">
-              <div>
-                <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Role</p>
-                <p className="font-medium text-foreground mt-1">{viewRequirement.role}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Candidates</p>
-                <p className="text-foreground mt-1">{viewRequirement.candidates}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Timeline</p>
-                <p className="text-foreground mt-1">{viewRequirement.timeline}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Status</p>
-                <p className="text-foreground mt-1">{viewRequirement.status}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Progress</p>
-                <p className="text-foreground mt-1">{viewRequirement.progress}%</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Ready date</p>
-                <p className="text-foreground mt-1">{viewRequirement.readyDate}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Attached JD</p>
-                <p className="text-foreground mt-1">
-                  {viewRequirement.job_description_id != null ? `JD #${viewRequirement.job_description_id}` : "None"}
-                </p>
-              </div>
-              {Array.isArray(viewRequirement.skills) && viewRequirement.skills.length > 0 && (
+      {/* View requirement pop-up (with Edit inside) */}
+      <Dialog open={!!viewRequirement} onOpenChange={(open) => { if (!open) { setViewRequirement(null); setIsEditingInPopup(false); } }}>
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{isEditingInPopup ? "Edit requirement" : "Requirement details"}</DialogTitle>
+          </DialogHeader>
+          {viewRequirement && !isEditingInPopup && (
+            <>
+              <div className="mt-4 space-y-4 text-sm">
                 <div>
-                  <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Skills</p>
-                  <div className="flex flex-wrap gap-1.5 mt-2">
-                    {viewRequirement.skills.map((sk) => (
-                      <Badge key={sk} variant="outline" className="text-xs">{sk}</Badge>
-                    ))}
-                  </div>
+                  <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Role</p>
+                  <p className="font-medium text-foreground mt-1">{viewRequirement.role}</p>
                 </div>
-              )}
-            </div>
+                <div>
+                  <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Candidates</p>
+                  <p className="text-foreground mt-1">{viewRequirement.candidates}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Timeline</p>
+                  <p className="text-foreground mt-1">{viewRequirement.timeline}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Status</p>
+                  <p className="text-foreground mt-1">{viewRequirement.status}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Progress</p>
+                  <p className="text-foreground mt-1">{viewRequirement.progress}%</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Ready date</p>
+                  <p className="text-foreground mt-1">{viewRequirement.readyDate}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Attached JD</p>
+                  <p className="text-foreground mt-1">
+                    {viewRequirement.job_description_id != null ? `JD #${viewRequirement.job_description_id}` : "None"}
+                  </p>
+                </div>
+                {Array.isArray(viewRequirement.skills) && viewRequirement.skills.length > 0 && (
+                  <div>
+                    <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Skills</p>
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {viewRequirement.skills.map((sk) => (
+                        <Badge key={sk} variant="outline" className="text-xs">{sk}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <DialogFooter className="mt-6">
+                <Button
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={() => {
+                    setEditForm({
+                      roleTitle: viewRequirement.role ?? "",
+                      candidatesCount: String(viewRequirement.candidates ?? 0),
+                      timeline: safeTimelineValue(viewRequirement.timeline ?? ""),
+                      attachedJdId: viewRequirement.job_description_id != null ? String(viewRequirement.job_description_id) : "",
+                    });
+                    setUpdateError(null);
+                    setIsEditingInPopup(true);
+                  }}
+                >
+                  <Pencil className="h-3.5 w-3.5" /> Edit
+                </Button>
+              </DialogFooter>
+            </>
           )}
-        </SheetContent>
-      </Sheet>
-
-      {/* Edit requirement sheet */}
-      <Sheet open={!!editRequirement} onOpenChange={(open) => !open && setEditRequirement(null)}>
-        <SheetContent side="right" className="sm:max-w-lg overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>Edit requirement</SheetTitle>
-          </SheetHeader>
-          {editRequirement && (
-            <form onSubmit={handleUpdateRequirement} className="mt-6 space-y-4">
+          {viewRequirement && isEditingInPopup && (
+            <form onSubmit={handleUpdateRequirement} className="mt-4 space-y-4">
               {updateError && (
                 <p className="text-sm text-destructive bg-destructive/10 p-2 rounded-md">{updateError}</p>
               )}
@@ -439,18 +423,18 @@ export default function FutureHiring() {
                   </Select>
                 </div>
               </div>
-              <div className="flex gap-2 pt-2">
+              <DialogFooter className="mt-6">
                 <Button type="submit" disabled={updating}>
-                  {updating ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving…</> : "Save changes"}
+                  {updating ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving…</> : "Save"}
                 </Button>
-                <Button type="button" variant="outline" onClick={() => setEditRequirement(null)}>
+                <Button type="button" variant="outline" onClick={() => setIsEditingInPopup(false)}>
                   Cancel
                 </Button>
-              </div>
+              </DialogFooter>
             </form>
           )}
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

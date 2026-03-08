@@ -34,8 +34,8 @@ export default function CompanyProfile() {
     briefDescription: "",
     hiringIntent: "",
     internshipAvailability: true,
-    preferredRoles: [] as string[],
-    preferredSkillDomains: [] as string[],
+    preferredRolesText: "",
+    preferredSkillDomainsText: "",
     mentorshipInterest: false,
     guestLectureInterest: false,
     hackathonParticipation: false,
@@ -53,8 +53,8 @@ export default function CompanyProfile() {
           briefDescription: p.briefDescription || "",
           hiringIntent: p.hiringIntent || "Both",
           internshipAvailability: p.internshipAvailability ?? true,
-          preferredRoles: Array.isArray(p.preferredRoles) ? p.preferredRoles : [],
-          preferredSkillDomains: Array.isArray(p.preferredSkillDomains) ? p.preferredSkillDomains : [],
+          preferredRolesText: Array.isArray(p.preferredRoles) ? p.preferredRoles.join(", ") : "",
+          preferredSkillDomainsText: Array.isArray(p.preferredSkillDomains) ? p.preferredSkillDomains.join(", ") : "",
           mentorshipInterest: p.mentorshipInterest ?? false,
           guestLectureInterest: p.guestLectureInterest ?? false,
           hackathonParticipation: p.hackathonParticipation ?? false,
@@ -80,8 +80,8 @@ export default function CompanyProfile() {
         briefDescription: form.briefDescription,
         hiringIntent: form.hiringIntent,
         internshipAvailability: form.internshipAvailability,
-        preferredRoles: form.preferredRoles,
-        preferredSkillDomains: form.preferredSkillDomains,
+        preferredRoles: form.preferredRolesText.split(",").map((s) => s.trim()).filter(Boolean),
+        preferredSkillDomains: form.preferredSkillDomainsText.split(",").map((s) => s.trim()).filter(Boolean),
         mentorshipInterest: form.mentorshipInterest,
         guestLectureInterest: form.guestLectureInterest,
         hackathonParticipation: form.hackathonParticipation,
@@ -204,11 +204,11 @@ export default function CompanyProfile() {
             </div>
             <div className="space-y-2">
               <Label>Preferred Roles (comma-separated)</Label>
-              <Input value={form.preferredRoles.join(", ")} onChange={(e) => setForm((f) => ({ ...f, preferredRoles: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) }))} placeholder="e.g. Backend Developer, Data Analyst" />
+              <Input type="text" value={form.preferredRolesText} onChange={(e) => setForm((f) => ({ ...f, preferredRolesText: e.target.value }))} placeholder="e.g. Backend Developer, Data Analyst" />
             </div>
             <div className="space-y-2">
               <Label>Preferred Skill Domains (comma-separated)</Label>
-              <Input value={form.preferredSkillDomains.join(", ")} onChange={(e) => setForm((f) => ({ ...f, preferredSkillDomains: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) }))} placeholder="e.g. AI/ML, Cloud, DevOps" />
+              <Input type="text" value={form.preferredSkillDomainsText} onChange={(e) => setForm((f) => ({ ...f, preferredSkillDomainsText: e.target.value }))} placeholder="e.g. AI/ML, Cloud, DevOps" />
             </div>
 
             {/* 3. Ecosystem Signals */}

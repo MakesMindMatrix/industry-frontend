@@ -66,6 +66,11 @@ export function Navbar() {
                 <DropdownMenuItem onClick={() => navigate("/login")}>
                   Industry Login
                 </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <a href="https://lms.mindmatrix.io/signup" target="_blank" rel="noopener noreferrer">
+                    Student Login
+                  </a>
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -98,10 +103,15 @@ export function Navbar() {
               {link.label}
             </Link>
           ))}
-          <div className="pt-2 border-t mt-2">
+          <div className="pt-2 border-t mt-2 space-y-1">
             <Button variant="ghost" className="w-full justify-start" onClick={() => { navigate("/login"); setMobileOpen(false); }}>
               Industry Login
             </Button>
+            <a href="https://lms.mindmatrix.io/signup" target="_blank" rel="noopener noreferrer" className="block">
+              <Button variant="ghost" className="w-full justify-start" onClick={() => setMobileOpen(false)}>
+                Student Login
+              </Button>
+            </a>
           </div>
         </div>
       )}

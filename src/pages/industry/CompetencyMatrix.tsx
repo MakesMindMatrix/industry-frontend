@@ -17,13 +17,6 @@ import {
   type JDDraft,
 } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 type Comp = { id: number; category: string; skills: string[]; weight: number; importance: string };
 type FromJdState = {
@@ -81,6 +74,7 @@ export default function CompetencyMatrix() {
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [savingMatrix, setSavingMatrix] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [userChoseSavedJd, setUserChoseSavedJd] = useState(false);
   const navigate = useNavigate();
 
   const savedJdList = jdList.filter((j) => j.status === "published" || j.id === selectedJdId);
@@ -108,7 +102,7 @@ export default function CompetencyMatrix() {
   }, [selectedJdId, matrixId]);
 
   useEffect(() => {
-    if (fromJd?.jd) {
+    if (fromJd?.jd && !userChoseSavedJd) {
       setLoading(true);
       setJdSource({ title: fromJd.title || "Job Description" });
       setFromJdText(fromJd.jd);
@@ -164,25 +158,36 @@ export default function CompetencyMatrix() {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [fromJd?.jd, selectedJdId]);
+  }, [fromJd?.jd, selectedJdId, userChoseSavedJd]);
 
   const updateWeight = (id: number, val: number[]) => {
     setCompetencies((prev) => prev.map((c) => (c.id === id ? { ...c, weight: val[0] } : c)));
   };
 
-  const generateFromSelectedJd = () => {
+  const [calculating, setCalculating] = useState(false);
+  const generateFromSelectedJd = async () => {
     if (selectedJdId == null) return;
-    setLoading(true);
-    getJD(selectedJdId)
-      .then((jd: { title?: string; jd?: string }) =>
-        fetchCompetencyFromJd({ title: jd.title || "JD", jd: jd.jd || "" })
-      )
-      .then((data) => {
-        setCompetencies(Array.isArray(data.competencies) ? data.competencies : []);
-        setSuggestions(Array.isArray(data.suggestions) ? data.suggestions : []);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    setCalculating(true);
+    setSaveError(null);
+    try {
+      const jd = await getJD(selectedJdId) as { title?: string; jd?: string };
+      const data = await fetchCompetencyFromJd({ title: jd.title || "JD", jd: jd.jd || "" });
+      const comps = skillGroupsToComps(Array.isArray(data.competencies) ? data.competencies : []);
+      const suggs = Array.isArray(data.suggestions) ? data.suggestions : [];
+      setCompetencies(comps);
+      setSuggestions(suggs);
+      setApproved(false);
+      if (comps.length > 0) {
+        const skillGroups = compsToSkillGroups(comps);
+        const created = await createCompetency({ job_description: selectedJdId, skillGroups, approved: false });
+        const id = created?.id != null ? Number(created.id) : null;
+        if (id != null) setMatrixId(id);
+      }
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : "Failed to calculate competency");
+    } finally {
+      setCalculating(false);
+    }
   };
 
   const navigateToFindMatching = () => {
@@ -326,7 +331,7 @@ export default function CompetencyMatrix() {
                     ? "border-primary bg-primary/10"
                     : "border-transparent hover:bg-sidebar-accent/50"
                 )}
-                onClick={() => setSelectedJdId(j.id)}
+                onClick={() => { setUserChoseSavedJd(true); setSelectedJdId(j.id); }}
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5 flex-wrap">
@@ -347,7 +352,7 @@ export default function CompetencyMatrix() {
                     size="icon"
                     className="h-7 w-7"
                     title="View matrix"
-                    onClick={(e) => { e.stopPropagation(); setSelectedJdId(j.id); }}
+                    onClick={(e) => { e.stopPropagation(); setUserChoseSavedJd(true); setSelectedJdId(j.id); }}
                   >
                     <Eye className="h-3.5 w-3.5" />
                   </Button>
@@ -385,37 +390,26 @@ export default function CompetencyMatrix() {
             </Badge>
           </div>
 
-          {/* Mobile: JD selector */}
+          {/* Calculate competency – selection is from SAVED JDs on the left */}
           {savedJdList.length > 0 && (
-            <div className="lg:hidden">
-              <label className="text-sm font-medium text-foreground block mb-2">Saved JD</label>
-              <Select
-                value={selectedJdId != null && savedJdList.some((j) => j.id === selectedJdId) ? String(selectedJdId) : ""}
-                onValueChange={(v) => setSelectedJdId(v ? Number(v) : null)}
-              >
-                <SelectTrigger><SelectValue placeholder="Select JD" /></SelectTrigger>
-                <SelectContent>
-                  {savedJdList.map((j) => (
-                    <SelectItem key={j.id} value={String(j.id)}>
-                      {j.title || `Draft #${j.id}`} {formatJdDate(j) && ` · ${formatJdDate(j)}`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="flex flex-wrap items-center gap-3">
+              {selectedJdId != null && noMatrixForJd && !loading && (
+                <Button
+                  onClick={generateFromSelectedJd}
+                  disabled={calculating}
+                  size="default"
+                  className="shrink-0"
+                >
+                  {calculating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
+                  {calculating ? "Calculating…" : "Calculate competency"}
+                </Button>
+              )}
+              {selectedJdId != null && !noMatrixForJd && competencies.length > 0 && (
+                <Badge variant="secondary" className="shrink-0">
+                  Competency saved for this JD
+                </Badge>
+              )}
             </div>
-          )}
-
-          {selectedJdId != null && noMatrixForJd && !loading && (
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="text-muted-foreground">No competency for this JD yet.</p>
-              <Button variant="outline" size="sm" onClick={generateFromSelectedJd} disabled={loading}>
-                <FileText className="h-4 w-4 mr-2" /> Generate from this JD
-              </Button>
-            </div>
-          )}
-
-          {competencies.length === 0 && !noMatrixForJd && !fromJd?.jd && selectedJdId == null && (
-            <p className="text-muted-foreground">Select a JD from the left or create one in AI JD Builder / Upload JD.</p>
           )}
 
           <div className="grid gap-4">

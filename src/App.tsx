@@ -11,6 +11,7 @@ import JDUpload from "./pages/industry/JDUpload";
 import JDCreate from "./pages/industry/JDCreate";
 import CompetencyMatrix from "./pages/industry/CompetencyMatrix";
 import StudentShortlisting from "./pages/industry/StudentShortlisting";
+// import OurStudents from "./pages/industry/OurStudents";
 import ActiveHiring from "./pages/industry/ActiveHiring";
 import FutureHiring from "./pages/industry/FutureHiring";
 import Contribute from "./pages/industry/Contribute";
@@ -42,6 +43,7 @@ const App = () => (
             <Route path="jd-create" element={<JDCreate />} />
             <Route path="competency" element={<CompetencyMatrix />} />
             <Route path="shortlisting" element={<StudentShortlisting />} />
+            {/* <Route path="our-students" element={<OurStudents />} /> */}
             <Route path="active-hiring" element={<ActiveHiring />} />
             <Route path="future-hiring" element={<FutureHiring />} />
             <Route path="contribute" element={<Contribute />} />

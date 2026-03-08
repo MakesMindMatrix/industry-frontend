@@ -446,12 +446,15 @@ export default function JDCreate() {
         <div className="flex flex-col min-h-0 flex-1 rounded-2xl border border-border/80 bg-gradient-to-b from-muted/30 to-muted/10 shadow-sm overflow-hidden">
           <div className="flex-1 min-h-0 overflow-y-auto p-5 space-y-5">
             {messages.length === 0 && (
-              <div className="text-center text-muted-foreground py-10 text-sm">
-                <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 text-primary mb-3">
-                  <Sparkles className="h-7 w-7" />
+              <div className="flex flex-col items-center justify-center py-16 px-6 text-center max-w-md mx-auto">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 text-primary mb-5 ring-2 ring-primary/10">
+                  <Sparkles className="h-8 w-8" />
                 </div>
-                <p className="font-medium text-foreground/90">Describe the role</p>
-                <p className="mt-1">I’ll ask for start date, location, and other details if needed. The JD will appear on the right when generation starts.</p>
+                <h2 className="text-xl font-semibold text-foreground mb-2">AI JD Builder</h2>
+                <p className="text-sm text-muted-foreground leading-relaxed mb-4">Create polished job descriptions in minutes. Describe the role, skills, experience level, or paste an existing JD—I&apos;ll refine it into a professional, structured format.
+                </p>
+                <p className="text-xs text-muted-foreground/80">
+                  Tip: Include start date, location, or team size if relevant. Your JD will appear in the panel on the right as it&apos;s generated.</p>
               </div>
             )}
             {messages.map((m) => (
